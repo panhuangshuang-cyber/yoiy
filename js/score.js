@@ -1,7 +1,7 @@
 import {
   animate,
   scrambleText,
-} from "https://cdn.jsdelivr.net/npm/animejs@4/+esm";
+} from "animejs";
 
 export function initScoreAnim() {
   var btn = document.querySelector(".primary-button");
