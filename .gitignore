@@ -32,3 +32,11 @@ CLAUDE.md
 .goosehints
 agent.md
 AGENT.md
+
+# Python Virtual Environments & Caches
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
