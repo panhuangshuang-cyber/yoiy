@@ -23,6 +23,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vscode/
+
+# AI Agent Configs (agy, cline, claude/cl, goose)
+GEMINI.md
+CLAUDE.md
+.clinerules
 .goosehints
 agent.md
-.vscode/
+AGENT.md
