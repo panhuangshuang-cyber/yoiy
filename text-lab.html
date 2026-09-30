@@ -50,38 +50,13 @@
                 <button class="primary-button" type="button">开始分析</button>
               </form>
             </article>
-
-            <article class="panel panel-half lab-panel result-panel card">
-              <div class="panel-heading">
-                <p class="section-kicker">结果区</p>
-                <h3>分析结果</h3>
-              </div>
-              <div class="result-stack">
-                <div class="result-item">
-                  <span>原文</span>
-                  <p>今天的风很轻，适合把脑海里的想法慢慢写下来。</p>
-                </div>
-                <div class="result-item">
-                  <span>拼音</span>
-                  <p>jīn tiān de fēng hěn qīng …</p>
-                </div>
-                <div class="result-grid">
-                  <div class="result-badge">
-                    <span>情感分数</span>
-                    <strong data-score>0.86</strong>
-                  </div>
-                  <div class="result-badge">
-                    <span>情感判断</span>
-                    <strong>偏积极</strong>
-                  </div>
-                </div>
-              </div>
-            </article>
+            <div id="result-root" class="panel-half"></div>
           </section>
         </main>
       </div>
     </div>
 
     <script type="module" src="js/main.js"></script>
+    <script type="module" src="/src/result.jsx"></script>
   </body>
 </html>
