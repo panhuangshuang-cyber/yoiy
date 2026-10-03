@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+backend/.venv/
 
 # next.js
 .next/
@@ -17,3 +18,4 @@ dist/
 .DS_Store
 *.log
 .env*
+
