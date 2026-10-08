@@ -1,6 +1,8 @@
 # dependencies
 node_modules/
 backend/.venv/
+__pycache__/
+*.py[cod]
 
 # next.js
 .next/
@@ -14,8 +16,13 @@ dist/
 .vscode/*
 !.vscode/extensions.json
 
+# 后端运行时生成的历史记录，不进版本库
+backend/history.json
+backend/history.json.*
+backend/history.sqlite3
+backend/history.sqlite3.*
+
 # misc
 .DS_Store
 *.log
 .env*
-

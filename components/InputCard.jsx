@@ -3,9 +3,13 @@
 // 文字实验室的"输入区"卡片。这一节给"开始分析"接上了后端：
 // 点按钮就把输入的文字 POST 给 /api/analyze，拿到结果通过 onResult 交给父组件。
 // 请求出问题时用 try/catch 接住，在按钮上方给一行提示，不让界面无声失效。
-// 后端地址暂时写死在下面，跟着课件，这一节最后会把它收进 .env.local。
+// 后端地址收在 .env.local 的 NEXT_PUBLIC_API_BASE_URL 里，改完要重启 next dev 才生效。
 import { useState } from "react";
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+// 和后端 backend/main.py 的 MAX_TEXT_LENGTH 保持一致：这里拦一道，
+// 用户就不会先打完字再被后端退回来
+const MAX_TEXT_LENGTH = 1000;
 
 export default function InputCard({ onResult }) {
   const [text, setText] = useState(
@@ -25,7 +29,12 @@ export default function InputCard({ onResult }) {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `分析失败：${res.status}`);
+        // 正常错误后端给的 detail 是字符串（如"文本不能为空"）；但如果撞上
+        // FastAPI 的 422，detail 是数组，直接塞进 Error 会显示成 [object Object]
+        const detail = Array.isArray(body.detail)
+          ? body.detail.map((d) => d.msg).join("；")
+          : body.detail;
+        throw new Error(detail || `分析失败：${res.status}`);
       }
 
       onResult(await res.json());
@@ -45,6 +54,7 @@ export default function InputCard({ onResult }) {
         <textarea
           id="text-input"
           rows="8"
+          maxLength={MAX_TEXT_LENGTH}
           placeholder="例如：生活没有标准答案，但每一天都值得认真感受。"
           value={text}
           onChange={(e) => setText(e.target.value)}

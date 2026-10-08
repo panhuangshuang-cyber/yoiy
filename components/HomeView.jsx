@@ -4,7 +4,8 @@
 // 打开页面时先用 site.js 的 home 打底，再用 useEffect 去 GET /api/profile，
 // 拿到后端数据后 setData 更新界面。因为要在浏览器里发请求，所以顶上写了 "use client"。
 // 请求失败时（比如后端没跑、跨源被拦）就保持打底数据、把错误打到控制台，页面不至于崩。
-// 注意：后端地址暂时写死在下面，跟着课件，这一节最后会把它收进 .env.local。
+// 后端地址收在 .env.local 的 NEXT_PUBLIC_API_BASE_URL 里。NEXT_PUBLIC_ 是编译期内联：
+// webpack 会把下面那行整个替换成字符串字面量写进产物，所以改完 .env.local 必须重启 next dev 才生效。
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Nav from "./Nav.jsx";
