@@ -1,10 +1,18 @@
+import os
+import uuid
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import Cookie, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pypinyin import Style, lazy_pinyin
 from snownlp import SnowNLP
+
+load_dotenv()
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS").split(",")
+
+
 
 # storage 里的路径锚定在 backend/ 自身（见 storage.HISTORY_DB），所以不管从仓库根
 # 还是从 backend/ 启动 uvicorn，读写的都是同一个 history.sqlite3。
@@ -27,16 +35,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    # next dev 平时在 3000，端口被占时会自动退到 3001；localhost 和 127.0.0.1
-    # 在浏览器眼里是两个不同的源，都得放行，否则 fetch 直接被跨源拦掉
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
+    # 跨域来源从环境变量 ALLOWED_ORIGINS 读取
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 profile = {
@@ -73,8 +76,29 @@ def score_label(score):
         return "中性"
 
 
+SESSION_COOKIE_NAME = "session_id"
+SESSION_COOKIE_MAX_AGE = 30 * 86400  # 30 天持久化
+
+
+def get_or_create_session_id(response: Response, session_id: str | None = None) -> str:
+    if not session_id:
+        session_id = uuid.uuid4().hex
+        response.set_cookie(
+            key=SESSION_COOKIE_NAME,
+            value=session_id,
+            max_age=SESSION_COOKIE_MAX_AGE,
+            httponly=True,
+            samesite="lax",
+        )
+    return session_id
+
+
 @app.post("/api/analyze")
-def analyze(req: AnalyzeRequest):
+def analyze(
+    req: AnalyzeRequest,
+    response: Response,
+    session_id: str | None = Cookie(default=None),
+):
     # 校验放在这里、用 HTTPException 抛，而不是用 Field(min_length=...)：前端的
     # InputCard 读的是 body.detail，pydantic 的 422 会把 detail 给成数组，界面就成 [object Object] 了
     text = req.text.strip()
@@ -82,6 +106,8 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=400, detail="文本不能为空")
     if len(text) > MAX_TEXT_LENGTH:
         raise HTTPException(status_code=400, detail=f"文本最多 {MAX_TEXT_LENGTH} 字")
+
+    sid = get_or_create_session_id(response, session_id)
 
     # 空字符串会让 SnowNLP 除零崩溃，所以上面必须先拦住
     score = SnowNLP(text).sentiments
@@ -94,11 +120,17 @@ def analyze(req: AnalyzeRequest):
         # 存本地时间、不带时区尾巴（不写 +00:00）；local time 对看日志/记录更方便
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
-    save_record(result)
+    save_record(result, session_id=sid)
     return result
 
 
 @app.get("/api/history")
-def history():
+def history(
+    response: Response,
+    session_id: str | None = Cookie(default=None),
+):
     # 路由函数和 storage 里的 history() 同名，所以导入时起个别名，各管各的
-    return recent_history(10)
+    if not session_id:
+        sid = get_or_create_session_id(response, session_id)
+        return recent_history(10, session_id=sid)
+    return recent_history(10, session_id=session_id)

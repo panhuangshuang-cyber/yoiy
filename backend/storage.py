@@ -29,6 +29,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
                 text TEXT NOT NULL,
                 score REAL NOT NULL,
                 label TEXT NOT NULL,
@@ -37,11 +38,19 @@ def init_db():
             )
             """
         )
+        # 兼容已有旧库结构：若无 session_id 列则自动增补
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(history)").fetchall()]
+        if "session_id" not in cols:
+            conn.execute("ALTER TABLE history ADD COLUMN session_id TEXT")
+
         # created_at 存的是定长本地 ISO 串（2026-10-08T11:05:43），字典序 == 时间序，
         # 所以直接给这一列建索引，按时间排序/取某天某段时间就都能走索引。IF NOT EXISTS
         # 保证老库也能补上这个索引。
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_history_created_at ON history (created_at)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_history_session_id ON history (session_id)"
         )
         _strip_utc_suffix(conn)
         conn.commit()
@@ -67,13 +76,14 @@ def _strip_utc_suffix(conn):
         )
 
 
-def save_record(record):
+def save_record(record, session_id=None):
     with _write_lock:
         conn = get_conn()
         try:
             conn.execute(
-                "INSERT INTO history (text, score, label, pinyin, created_at) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO history (session_id, text, score, label, pinyin, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 (
+                    session_id,
                     record["text"],
                     record["score"],
                     record["label"],
@@ -86,17 +96,23 @@ def save_record(record):
             conn.close()
 
 
-def history(limit):
+def history(limit=None, session_id=None):
     # id 是自增的，ORDER BY id DESC 就等价于"最新的在前"；新库不再有 order by 反转问题
     # sqlite 里 LIMIT 为负数表示不限条数，所以 limit=None 时映射成 -1 取全部
     if limit is None:
         limit = -1
     conn = get_conn()
     try:
-        rows = conn.execute(
-            "SELECT id, text, score, label, pinyin, created_at FROM history ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if session_id is not None:
+            rows = conn.execute(
+                "SELECT id, session_id, text, score, label, pinyin, created_at FROM history WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+                (session_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, session_id, text, score, label, pinyin, created_at FROM history ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
     finally:
         conn.close()
     return [dict(row) for row in rows]

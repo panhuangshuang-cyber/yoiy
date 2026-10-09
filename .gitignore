@@ -26,3 +26,4 @@ backend/history.sqlite3.*
 .DS_Store
 *.log
 .env*
+!**/.env.example
